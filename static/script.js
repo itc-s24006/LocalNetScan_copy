@@ -1358,3 +1358,336 @@ function escapeHtml(text) {
     };
     return text.replace(/[&<>"']/g, m => map[m]);
 }
+
+
+// ========================================
+// 履歴機能のJavaScript 追加
+// ========================================
+
+let currentHistoryScanId = null;
+
+// ページ読み込み時に履歴を取得
+document.addEventListener('DOMContentLoaded', function() {
+    loadScanHistory();
+    // 10秒ごとに履歴を更新
+    setInterval(loadScanHistory, 10000);
+});
+
+/**
+ * スキャン履歴を読み込んで表示
+ */
+async function loadScanHistory() {
+    try {
+        const response = await fetch('/api/history');
+        if (!response.ok) return;
+
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            console.error('History API returned non-JSON response');
+            return;
+        }
+
+        const history = await response.json();
+        const container = document.getElementById('historyContainer');
+
+        if (!container) return;
+
+        if (history.length === 0) {
+            container.innerHTML = `
+                <div class="empty-history">
+                    <div class="empty-history-icon">📋</div>
+                    <div>スキャン履歴がありません</div>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = history.map(scan => {
+            const date = new Date(scan.timestamp);
+            const timeStr = date.toLocaleString('ja-JP', {
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            const isActive = scan.id === currentHistoryScanId ? 'active' : '';
+            const name = scan.name && scan.name.trim() ? scan.name.trim() : '未設定';
+
+            return `
+                <div class="history-item ${isActive}" onclick="loadHistoryScan(${scan.id})">
+                    <div class="history-name" style="font-weight:600;color:#2d3748;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px;">
+                            ${escapeHtml(name)}
+                    </div>
+                    <div class="history-time">${timeStr}</div>
+                    <div class="history-target">${scan.target}</div>
+                    <div class="history-count">🖥️ ${scan.host_count}台のホスト</div>
+                    <div class="history-actions" onclick="event.stopPropagation()">
+                        <button class="history-edit-btn" onclick="editHistoryName(${scan.id}, ${JSON.stringify(name)})">
+                            編集
+                        </button>
+                        <button class="history-btn" onclick="deleteHistoryScan(${scan.id})">削除</button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    } catch (error) {
+        console.error('履歴読み込みエラー:', error);
+    }
+}
+
+/**
+ * 履歴名を編集する
+ * - 既存の `#historyEditModal` があればそれを使い、なければ prompt で実装
+ * - サーバー側は `PATCH /api/history/{id}` を想定し、ボディに { name: '新しい名前' } を送る
+ */
+async function editHistoryName(scanId, currentName) {
+    // 優先: モーダルがある場合はその実装を使う（簡易版）
+    const modal = document.getElementById('historyEditModal');
+    let newName = null;
+
+    if (modal) {
+        // モーダルの存在を想定: input#historyNameInput, button#historyNameSave, button#historyNameCancel
+        const input = document.getElementById('historyNameInput');
+        const saveBtn = document.getElementById('historyNameSave');
+        const cancelBtn = document.getElementById('historyNameCancel');
+
+        if (!input || !saveBtn || !cancelBtn) {
+            // モーダルが不完全ならフォールバック
+            newName = prompt('履歴名を入力してください', currentName);
+        } else {
+            input.value = currentName || '';
+            modal.classList.remove('hidden');
+
+            // 一度だけハンドラを登録
+            const onSave = async () => {
+                modal.classList.add('hidden');
+                saveBtn.removeEventListener('click', onSave);
+                cancelBtn.removeEventListener('click', onCancel);
+                newName = input.value;
+                await performHistoryRename(scanId, newName);
+            };
+            const onCancel = () => {
+                modal.classList.add('hidden');
+                saveBtn.removeEventListener('click', onSave);
+                cancelBtn.removeEventListener('click', onCancel);
+            };
+
+            saveBtn.addEventListener('click', onSave);
+            cancelBtn.addEventListener('click', onCancel);
+            return;
+        }
+    } else {
+        // モーダルがなければ prompt を使用
+        newName = prompt('履歴名を入力してください', currentName);
+    }
+
+    if (newName === null) return; // ユーザーキャンセル
+    await performHistoryRename(scanId, newName);
+}
+
+async function performHistoryRename(scanId, newName) {
+    newName = (newName || '').trim();
+    if (newName.length === 0) {
+        showNotification('名前を入力してください', 'error');
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/history/${scanId}`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ name: newName })
+        });
+
+        const data = await response.json().catch(() => null);
+
+        if (response.ok && data && (data.status === 'success' || response.status === 200)) {
+            showNotification('履歴名を更新しました', 'success');
+            // 更新反映: 全部リロードしても良いし、部分更新でも可。ここでは再取得する。
+            loadScanHistory();
+        } else {
+            const msg = (data && data.message) ? data.message : response.statusText || '更新に失敗しました';
+            showNotification('履歴名の更新に失敗しました: ' + msg, 'error');
+        }
+    } catch (error) {
+        console.error('履歴名更新エラー:', error);
+        showNotification('通信エラーにより更新できませんでした', 'error');
+    }
+}
+
+/**
+ * 履歴からスキャン結果を読み込む
+ */
+async function loadHistoryScan(scanId) {
+    try {
+        const response = await fetch(`/api/history/${scanId}/load`, {
+            method: 'POST'
+        });
+
+        if (!response.ok) {
+            console.error('Failed to load scan:', response.status);
+            return;
+        }
+
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            console.error('Load API returned non-JSON response');
+            return;
+        }
+
+        const data = await response.json();
+
+        if (data.success) {
+            currentHistoryScanId = scanId;
+
+            // 既存のテーブル更新関数を呼び出し
+            // updateHostsTable関数が存在する場合
+            if (typeof updateHostsTable === 'function') {
+                updateHostsTable(data.hosts);
+            } else {
+                // 別の更新方法があればここに記述
+                console.log('Loaded scan data:', data);
+                // 例: テーブルを手動で更新
+                updateResultsFromHistory(data.hosts);
+            }
+
+            // 履歴のアクティブ状態を更新
+            loadScanHistory();
+
+            // 通知表示
+            showNotification('履歴を読み込みました', 'success');
+        } else {
+            showNotification('履歴の読み込みに失敗しました', 'error');
+        }
+    } catch (error) {
+        console.error('履歴読み込みエラー:', error);
+        showNotification('履歴の読み込みに失敗しました', 'error');
+    }
+}
+
+/**
+ * スキャン履歴を削除
+ */
+async function deleteHistoryScan(scanId) {
+    if (!confirm('この履歴を削除しますか？')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/history/${scanId}`, {
+            method: 'DELETE'
+        });
+
+        if (!response.ok) {
+            console.error('Failed to delete scan:', response.status);
+            return;
+        }
+
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            console.error('Delete API returned non-JSON response');
+            return;
+        }
+
+        const data = await response.json();
+
+        if (data.success) {
+            // 現在表示中のスキャンを削除した場合
+            if (currentHistoryScanId === scanId) {
+                currentHistoryScanId = null;
+                // テーブルをクリア（既存の関数があれば使用）
+                const tbody = document.querySelector('#hostsTable tbody');
+                if (tbody) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">スキャン結果がありません</td></tr>';
+                }
+            }
+
+            // 履歴を再読み込み
+            loadScanHistory();
+
+            showNotification('履歴を削除しました', 'success');
+        } else {
+            showNotification('削除に失敗しました', 'error');
+        }
+    } catch (error) {
+        console.error('削除エラー:', error);
+        showNotification('削除に失敗しました', 'error');
+    }
+}
+
+/**
+ * 履歴データから結果を更新（updateHostsTableがない場合の代替）
+ */
+function updateResultsFromHistory(hosts) {
+    const tbody = document.querySelector('#hostsTable tbody');
+    if (!tbody) return;
+
+    if (Object.keys(hosts).length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">ホストが見つかりませんでした</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = '';
+    for (const [ip, info] of Object.entries(hosts)) {
+        const row = tbody.insertRow();
+        row.innerHTML = `
+            <td>${ip}</td>
+            <td>${info.hostname || 'Unknown'}</td>
+            <td><span class="status-badge status-up">${info.state}</span></td>
+            <td>${info.vendor || '-'}</td>
+            <td>
+                <button class="btn-small" onclick="scanPorts('${ip}')">ポートスキャン</button>
+            </td>
+        `;
+    }
+}
+
+/**
+ * 通知を表示
+ */
+function showNotification(message, type = 'info') {
+    // 既存の通知システムがあればそれを使用
+    console.log(`[${type.toUpperCase()}] ${message}`);
+
+    // 簡易的な通知表示
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 15px 20px;
+        background: ${type === 'success' ? '#28a745' : type === 'error' ? '#dc3545' : '#17a2b8'};
+        color: white;
+        border-radius: 5px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        z-index: 10000;
+        animation: slideIn 0.3s ease;
+    `;
+    notification.textContent = message;
+
+    document.body.appendChild(notification);
+
+    setTimeout(() => {
+        notification.style.animation = 'slideOut 0.3s ease';
+        setTimeout(() => notification.remove(), 300);
+    }, 3000);
+}
+
+// 通知アニメーション用のスタイルを追加
+if (!document.getElementById('notification-styles')) {
+    const style = document.createElement('style');
+    style.id = 'notification-styles';
+    style.textContent = `
+        @keyframes slideIn {
+            from { transform: translateX(400px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes slideOut {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(400px); opacity: 0; }
+        }
+    `;
+    document.head.appendChild(style);
+}

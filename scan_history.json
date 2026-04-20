@@ -1,0 +1,30 @@
+[
+  {
+    "id": 1776652422449,
+    "timestamp": "2026-04-20T11:33:42.449303",
+    "target": "192.168.122.1/24",
+    "host_count": 1,
+    "hosts": {
+      "192.168.122.1": {
+        "hostname": "masapo-Modern-14-C12MO",
+        "state": "up",
+        "vendor": "",
+        "subnet": "192.168.122.1/24"
+      }
+    }
+  },
+  {
+    "id": 1763347994191,
+    "timestamp": "2025-11-17T11:53:14.191602",
+    "target": "192.168.122.1/24",
+    "host_count": 1,
+    "hosts": {
+      "192.168.122.1": {
+        "hostname": "masapo-Modern-14-C12MO",
+        "state": "up",
+        "vendor": "",
+        "subnet": "192.168.122.1/24"
+      }
+    }
+  }
+]

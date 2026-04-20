@@ -13,6 +13,8 @@ import networkx as nx
 from typing import List, Dict, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
+# # 履歴サイドバーモジュール追加
+# from history_manager import HistoryManager
 
 # SSL警告を抑制（自己署名証明書のHTTPSアクセス時）
 import urllib3

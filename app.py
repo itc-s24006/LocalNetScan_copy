@@ -8,6 +8,8 @@ from scanner import NetworkScanner
 import threading
 import time
 from datetime import datetime
+# 履歴サイドバーモジュール追加
+from history_manager import HistoryManager
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'localnetscan-secret-key-change-in-production'
@@ -22,6 +24,8 @@ scan_status = {
 }
 scan_results = {}
 port_scan_results = {}
+
+history_manager = HistoryManager()
 
 
 def background_scan(target_range=None):
@@ -91,6 +95,11 @@ def background_scan(target_range=None):
         scan_status['last_scan_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         scan_status['scan_progress'] = 100
         scan_status['current_subnet'] = f'完了 ({len(results)}台のホストを検出)'
+
+        # スキャン結果を履歴に保存
+        target_str = target_range if target_range else 'auto-detect'
+        history_manager.add_scan_record(target_str, results)
+        print(f"✓ スキャン結果を履歴に保存しました")
 
         print("\n" + "="*60)
         print(f"全スキャン完了!")
@@ -930,6 +939,138 @@ def limit_remote_addr():
     # if client_ip not in allowed_ips:
     #     return jsonify({'error': 'アクセス拒否: ローカルホストのみアクセス可能です'}), 403
 
+@app.route('/api/history', methods=['GET'])
+def get_scan_history():
+    """
+    スキャン履歴一覧を取得
+
+    Returns:
+        JSON: スキャン履歴のリスト
+    """
+    try:
+        history = history_manager.load_history()
+        response = jsonify(history)
+        response.headers['Content-Type'] = 'application/json'
+        return response
+    except Exception as e:
+        print(f"履歴取得エラー: {e}")
+        response = jsonify([])
+        response.headers['Content-Type'] = 'application/json'
+        return response, 200
+
+
+@app.route('/api/history/<int:scan_id>', methods=['GET'])
+def get_scan_detail(scan_id):
+    """
+    特定のスキャン記録の詳細を取得
+
+    Args:
+        scan_id: スキャンID
+
+    Returns:
+        JSON: スキャン記録の詳細
+    """
+    try:
+        scan = history_manager.get_scan_by_id(scan_id)
+        if scan:
+            response = jsonify(scan)
+            response.headers['Content-Type'] = 'application/json'
+            return response
+        else:
+            response = jsonify({'error': 'Scan not found'})
+            response.headers['Content-Type'] = 'application/json'
+            return response, 404
+    except Exception as e:
+        print(f"スキャン詳細取得エラー: {e}")
+        response = jsonify({'error': str(e)})
+        response.headers['Content-Type'] = 'application/json'
+        return response, 500
+
+
+@app.route('/api/history/<int:scan_id>/load', methods=['POST'])
+def load_scan_from_history(scan_id):
+    """
+    履歴からスキャン結果を読み込んで現在の結果として表示
+
+    Args:
+        scan_id: スキャンID
+
+    Returns:
+        JSON: 読み込み結果
+    """
+    global scan_results
+
+    try:
+        scan = history_manager.get_scan_by_id(scan_id)
+        if scan:
+            # 現在の結果として設定
+            scan_results = scan['hosts']
+
+            response = jsonify({
+                'success': True,
+                'hosts': scan_results,
+                'target': scan['target'],
+                'timestamp': scan['timestamp']
+            })
+            response.headers['Content-Type'] = 'application/json'
+            return response
+        else:
+            response = jsonify({'success': False, 'error': 'Scan not found'})
+            response.headers['Content-Type'] = 'application/json'
+            return response, 404
+    except Exception as e:
+        print(f"履歴読み込みエラー: {e}")
+        response = jsonify({'success': False, 'error': str(e)})
+        response.headers['Content-Type'] = 'application/json'
+        return response, 500
+
+
+@app.route('/api/history/<int:scan_id>', methods=['DELETE'])
+def delete_scan_history(scan_id):
+    """
+    特定のスキャン履歴を削除
+
+    Args:
+        scan_id: 削除するスキャンID
+
+    Returns:
+        JSON: 削除結果
+    """
+    try:
+        success = history_manager.delete_scan(scan_id)
+
+        response = jsonify({'success': success})
+        response.headers['Content-Type'] = 'application/json'
+
+        if success:
+            return response
+        else:
+            return response, 404
+    except Exception as e:
+        print(f"履歴削除エラー: {e}")
+        response = jsonify({'success': False, 'error': str(e)})
+        response.headers['Content-Type'] = 'application/json'
+        return response, 500
+
+
+@app.route('/api/history/summary', methods=['GET'])
+def get_history_summary():
+    """
+    履歴の統計情報を取得
+
+    Returns:
+        JSON: 統計情報
+    """
+    try:
+        summary = history_manager.get_history_summary()
+        response = jsonify(summary)
+        response.headers['Content-Type'] = 'application/json'
+        return response
+    except Exception as e:
+        print(f"統計情報取得エラー: {e}")
+        response = jsonify({'error': str(e)})
+        response.headers['Content-Type'] = 'application/json'
+        return response, 500
 
 if __name__ == '__main__':
     import socket

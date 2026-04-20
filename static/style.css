@@ -11,6 +11,20 @@ body {
     min-height: 100vh;
     padding: 20px;
     color: #333;
+    display: flex;
+}
+
+/* アプリ全体のコンテナ */
+.app-container {
+    display: flex;
+    width: 100%;
+    min-height: 100vh;
+}
+
+/* メインコンテンツエリア */
+.main-content {
+    flex: 1;
+    overflow-y: auto;
 }
 
 .container {
@@ -412,6 +426,185 @@ header h1 {
     font-size: 0.85rem;
     color: #666;
     line-height: 1.6;
+}
+
+/* 履歴サイドバー */
+.history-sidebar {
+    width: 320px;
+    background: #ffffff;
+    border-left: 1px solid #e1e4e8;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+/* サイドバーヘッダー */
+.sidebar-header {
+    padding: 20px;
+    border-bottom: 1px solid #e1e4e8;
+    background: #f6f8fa;
+}
+
+.sidebar-header h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #24292e;
+}
+
+/* サイドバーコンテンツ */
+.sidebar-content {
+    flex: 1;
+    padding: 12px;
+    overflow-y: auto;
+}
+
+/* 履歴アイテム */
+.history-item {
+    background: #f6f8fa;
+    border: 1px solid #e1e4e8;
+    border-radius: 6px;
+    padding: 12px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.history-item:hover {
+    background: #ffffff;
+    border-color: #0366d6;
+    transform: translateX(-2px);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+
+.history-item.active {
+    background: #0366d6;
+    border-color: #0366d6;
+    color: white;
+}
+
+/* 履歴アイテムの内容 */
+.history-time {
+    font-size: 11px;
+    color: #586069;
+    margin-bottom: 6px;
+}
+
+.history-item.active .history-time {
+    color: rgba(255,255,255,0.8);
+}
+
+.history-target {
+    font-size: 13px;
+    font-weight: 600;
+    color: #24292e;
+    margin-bottom: 4px;
+    word-break: break-all;
+}
+
+.history-item.active .history-target {
+    color: white;
+}
+
+.history-count {
+    font-size: 12px;
+    color: #586069;
+}
+
+.history-item.active .history-count {
+    color: rgba(255,255,255,0.9);
+}
+
+/* 履歴アクション */
+.history-actions {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid #e1e4e8;
+}
+
+.history-item.active .history-actions {
+    border-top-color: rgba(255,255,255,0.2);
+}
+
+.history-btn {
+    padding: 4px 10px;
+    font-size: 11px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    background: #d73a49;
+    color: white;
+    font-weight: 500;
+    transition: background 0.15s ease;
+}
+
+.history-btn:hover {
+    background: #cb2431;
+}
+
+.history-item.active .history-btn {
+    background: rgba(255,255,255,0.25);
+}
+
+.history-item.active .history-btn:hover {
+    background: rgba(255,255,255,0.35);
+}
+
+.history-edit-btn {
+    padding: 4px 10px;
+    font-size: 11px;
+    border: none;
+    border-radius:6px;
+    cursor:pointer;
+    background:#e2e8f0;
+    color:#4a5568;
+    font-weight: 500;
+    transition: background 0.15s ease;
+}
+
+.history-edit-btn:hover {
+    background: #cbd5e0;
+}
+
+.history-item.active .history-edit-btn {
+    background: rgba(255,255,255,0.25);
+}
+
+.history-item.active .history-edit-btn:hover {
+    background: rgba(255,255,255,0.35);
+}
+
+/* 空の履歴表示 */
+.empty-history {
+    text-align: center;
+    padding: 40px 20px;
+    color: #586069;
+}
+
+.empty-history-icon {
+    font-size: 48px;
+    margin-bottom: 12px;
+    opacity: 0.3;
+}
+
+/* 履歴サイドバーのレスポンシブ対応 */
+@media (max-width: 1200px) {
+    .history-sidebar {
+        width: 280px;
+    }
+}
+
+@media (max-width: 768px) {
+    .app-container {
+        flex-direction: column;
+    }
+
+    .history-sidebar {
+        width: 100%;
+        max-height: 300px;
+        border-left: none;
+        border-top: 1px solid #e1e4e8;
+    }
 }
 
 /* モーダルアクション */

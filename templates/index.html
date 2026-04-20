@@ -7,175 +7,195 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <div class="container">
-        <header>
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                    <h1>LocalNetScan</h1>
-                    <p class="subtitle">ローカルネットワークスキャナー</p>
-                </div>
-                <button class="btn btn-secondary" onclick="openSudoPasswordModal()" style="height: fit-content;">
-                    🔑 sudo設定
-                </button>
-            </div>
-        </header>
-
-        <div class="controls">
-            <div class="scan-input-group">
-                <input type="text" id="targetRange" class="input-field"
-                       placeholder="例: 192.168.0.1-50 または 192.168.0.0/24" />
-                <button id="rescanBtn" class="btn btn-primary">
-                    <span class="btn-icon">🔄</span> スキャン
-                </button>
-                <button id="networkMapBtn" class="btn btn-secondary" onclick="openNetworkMapModal()">
-                    <span class="btn-icon">🗺️</span> ネットワークマップ
-                </button>
-            </div>
-            <div class="status-info">
-                <span id="lastScanTime">最終スキャン: --</span>
-                <span id="hostCount">検出ホスト数: 0</span>
-            </div>
-        </div>
-
-        <div class="scan-examples">
-            <p class="example-label">スキャン範囲の指定例:</p>
-            <div class="examples">
-                <span class="example-item">127.0.0.1</span>
-                <span class="example-item">192.168.0.1-50</span>
-                <span class="example-item">192.168.0.0/24</span>
-                <span class="example-item">172.17.0.0/16</span>
-                <span class="example-item">192.168.0.0/24,172.17.0.0/16</span>
-            </div>
-            <p style="font-size: 0.85rem; color: #718096; margin-top: 8px;">
-                💡 ヒント: カンマ区切りで複数範囲を同時スキャン可能（Dockerネットワーク等）
-            </p>
-        </div>
-
-        <div id="scanStatus" class="scan-status hidden">
-            <div class="progress-container">
-                <div class="progress-bar">
-                    <div id="progressBar" class="progress-fill"></div>
-                </div>
-                <div class="progress-text">
-                    <span id="progressText">スキャン中...</span>
-                </div>
-            </div>
-        </div>
-
-        <div id="hostsContainer" class="hosts-grid">
-            <!-- ホストカードがここに動的に追加されます -->
-        </div>
-    </div>
-
-    <!-- ポートスキャン設定モーダル -->
-    <div id="portScanConfigModal" class="modal hidden">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>ポートスキャン設定</h2>
-                <button class="close-btn" onclick="closePortScanConfig()">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div class="form-group">
-                    <label>スキャンモード:</label>
-                    <div style="margin-top: 8px;">
-                        <label style="display: block; margin-bottom: 8px; cursor: pointer;">
-                            <input type="radio" name="scanMode" value="priority" checked style="margin-right: 8px;">
-                            📌 優先ポートのみ (高速、よく使われるポート)
-                        </label>
-                        <label style="display: block; cursor: pointer;">
-                            <input type="radio" name="scanMode" value="full" style="margin-right: 8px;">
-                            🔍 全ポート (1-65535、6スレッド並列)
-                        </label>
+<div class="app-container">
+    <div class="main-content">
+        <div class="container">
+            <header>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <h1>LocalNetScan</h1>
+                        <p class="subtitle">ローカルネットワークスキャナー</p>
                     </div>
+                    <button class="btn btn-secondary" onclick="openSudoPasswordModal()" style="height: fit-content;">
+                        🔑 sudo設定
+                    </button>
                 </div>
-                <div class="form-group" style="margin-top: 20px;">
-                    <label for="scanCommand">nmapコマンド引数:</label>
-                    <input type="text" id="scanCommand" class="input-field"
-                           value="-sT -sV"
-                           placeholder="例: -sT -sV -p 1-1000" />
-                    <p class="help-text">
-                        デフォルト: -sT -sV (TCP接続スキャン + バージョン検出)<br>
-                        例: -sT -p 80,443,3000 (特定ポートのみ)<br>
-                        例: -sT -p 1-1000 (ポート1-1000)<br>
-                        ⚠️ -sS (SYNスキャン) はroot権限が必要です
-                    </p>
-                </div>
-                <div class="modal-actions">
-                    <button class="btn btn-secondary" onclick="closePortScanConfig()">キャンセル</button>
-                    <button class="btn btn-primary" onclick="executePortScan()">スキャン実行</button>
-                </div>
-            </div>
-        </div>
-    </div>
+            </header>
 
-    <!-- sudoパスワード設定モーダル -->
-    <div id="sudoPasswordModal" class="modal hidden">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>sudo権限設定</h2>
-                <button class="close-btn" onclick="closeSudoPasswordModal()">&times;</button>
+            <div class="controls">
+                <div class="scan-input-group">
+                    <input type="text" id="targetRange" class="input-field"
+                           placeholder="例: 192.168.0.1-50 または 192.168.0.0/24"/>
+                    <button id="rescanBtn" class="btn btn-primary">
+                        <span class="btn-icon">🔄</span> スキャン
+                    </button>
+                    <button id="networkMapBtn" class="btn btn-secondary" onclick="openNetworkMapModal()">
+                        <span class="btn-icon">🗺️</span> ネットワークマップ
+                    </button>
+                </div>
+                <div class="status-info">
+                    <span id="lastScanTime">最終スキャン: --</span>
+                    <span id="hostCount">検出ホスト数: 0</span>
+                </div>
             </div>
-            <div class="modal-body">
-                <p style="color: #666; margin-bottom: 15px;">
-                    一部のnmapスキャン（-sS SYNスキャンなど）にはroot権限が必要です。<br>
-                    sudoパスワードを設定すると、自動的にsudoでスキャンを実行します。
+
+            <div class="scan-examples">
+                <p class="example-label">スキャン範囲の指定例:</p>
+                <div class="examples">
+                    <span class="example-item">127.0.0.1</span>
+                    <span class="example-item">192.168.0.1-50</span>
+                    <span class="example-item">192.168.0.0/24</span>
+                    <span class="example-item">172.17.0.0/16</span>
+                    <span class="example-item">192.168.0.0/24,172.17.0.0/16</span>
+                </div>
+                <p style="font-size: 0.85rem; color: #718096; margin-top: 8px;">
+                    💡 ヒント: カンマ区切りで複数範囲を同時スキャン可能（Dockerネットワーク等）
                 </p>
-                <div class="form-group">
-                    <label for="sudoPassword">sudoパスワード:</label>
-                    <input type="password" id="sudoPassword" class="input-field"
-                           placeholder="パスワードを入力" />
-                    <p class="help-text">
-                        パスワードはサーバー側のメモリに一時保存されます（セッション終了時に削除）
-                    </p>
+            </div>
+
+            <div id="scanStatus" class="scan-status hidden">
+                <div class="progress-container">
+                    <div class="progress-bar">
+                        <div id="progressBar" class="progress-fill"></div>
+                    </div>
+                    <div class="progress-text">
+                        <span id="progressText">スキャン中...</span>
+                    </div>
                 </div>
-                <div class="modal-actions">
-                    <button class="btn btn-secondary" onclick="closeSudoPasswordModal()">キャンセル</button>
-                    <button class="btn btn-primary" onclick="saveSudoPassword()">保存</button>
-                </div>
+            </div>
+
+            <div id="hostsContainer" class="hosts-grid">
+                <!-- ホストカードがここに動的に追加されます -->
             </div>
         </div>
-    </div>
 
-    <!-- ネットワークマップモーダル -->
-    <div id="networkMapModal" class="modal hidden">
-        <div class="modal-content modal-large">
-            <div class="modal-header">
-                <h2>🗺️ ネットワークトポロジーマップ</h2>
-                <button class="close-btn" onclick="closeNetworkMapModal()">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div id="networkMapStats" class="network-stats">
-                    <!-- 統計情報がここに表示されます -->
+        <!-- ポートスキャン設定モーダル -->
+        <div id="portScanConfigModal" class="modal hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>ポートスキャン設定</h2>
+                    <button class="close-btn" onclick="closePortScanConfig()">&times;</button>
                 </div>
-                <div id="networkMapCanvas" class="network-canvas">
-                    <canvas id="topologyCanvas" width="900" height="600"></canvas>
-                </div>
-                <div class="network-legend">
-                    <h4>凡例:</h4>
-                    <div class="legend-items">
-                        <div class="legend-item"><span class="legend-color gateway"></span> ゲートウェイ/ルーター</div>
-                        <div class="legend-item"><span class="legend-color server"></span> サーバー (5+ポート)</div>
-                        <div class="legend-item"><span class="legend-color mobile"></span> モバイル機器</div>
-                        <div class="legend-item"><span class="legend-color host"></span> その他のホスト</div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>スキャンモード:</label>
+                        <div style="margin-top: 8px;">
+                            <label style="display: block; margin-bottom: 8px; cursor: pointer;">
+                                <input type="radio" name="scanMode" value="priority" checked style="margin-right: 8px;">
+                                📌 優先ポートのみ (高速、よく使われるポート)
+                            </label>
+                            <label style="display: block; cursor: pointer;">
+                                <input type="radio" name="scanMode" value="full" style="margin-right: 8px;">
+                                🔍 全ポート (1-65535、6スレッド並列)
+                            </label>
+                        </div>
+                    </div>
+                    <div class="form-group" style="margin-top: 20px;">
+                        <label for="scanCommand">nmapコマンド引数:</label>
+                        <input type="text" id="scanCommand" class="input-field"
+                               value="-sT -sV"
+                               placeholder="例: -sT -sV -p 1-1000"/>
+                        <p class="help-text">
+                            デフォルト: -sT -sV (TCP接続スキャン + バージョン検出)<br>
+                            例: -sT -p 80,443,3000 (特定ポートのみ)<br>
+                            例: -sT -p 1-1000 (ポート1-1000)<br>
+                            ⚠️ -sS (SYNスキャン) はroot権限が必要です
+                        </p>
+                    </div>
+                    <div class="modal-actions">
+                        <button class="btn btn-secondary" onclick="closePortScanConfig()">キャンセル</button>
+                        <button class="btn btn-primary" onclick="executePortScan()">スキャン実行</button>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
 
-    <!-- HTTP詳細情報モーダル -->
-    <div id="httpInfoModal" class="modal hidden">
-        <div class="modal-content modal-medium">
-            <div class="modal-header">
-                <h2 id="httpInfoModalTitle">🌐 HTTP/HTTPS詳細情報</h2>
-                <button class="close-btn" onclick="closeHttpInfoModal()">&times;</button>
+        <!-- sudoパスワード設定モーダル -->
+        <div id="sudoPasswordModal" class="modal hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>sudo権限設定</h2>
+                    <button class="close-btn" onclick="closeSudoPasswordModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <p style="color: #666; margin-bottom: 15px;">
+                        一部のnmapスキャン（-sS SYNスキャンなど）にはroot権限が必要です。<br>
+                        sudoパスワードを設定すると、自動的にsudoでスキャンを実行します。
+                    </p>
+                    <div class="form-group">
+                        <label for="sudoPassword">sudoパスワード:</label>
+                        <input type="password" id="sudoPassword" class="input-field"
+                               placeholder="パスワードを入力"/>
+                        <p class="help-text">
+                            パスワードはサーバー側のメモリに一時保存されます（セッション終了時に削除）
+                        </p>
+                    </div>
+                    <div class="modal-actions">
+                        <button class="btn btn-secondary" onclick="closeSudoPasswordModal()">キャンセル</button>
+                        <button class="btn btn-primary" onclick="saveSudoPassword()">保存</button>
+                    </div>
+                </div>
             </div>
-            <div class="modal-body" id="httpInfoModalBody" style="max-height: 600px; overflow-y: auto;">
-                <!-- HTTP詳細情報がここに表示されます -->
+        </div>
+
+        <!-- ネットワークマップモーダル -->
+        <div id="networkMapModal" class="modal hidden">
+            <div class="modal-content modal-large">
+                <div class="modal-header">
+                    <h2>🗺️ ネットワークトポロジーマップ</h2>
+                    <button class="close-btn" onclick="closeNetworkMapModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div id="networkMapStats" class="network-stats">
+                        <!-- 統計情報がここに表示されます -->
+                    </div>
+                    <div id="networkMapCanvas" class="network-canvas">
+                        <canvas id="topologyCanvas" width="900" height="600"></canvas>
+                    </div>
+                    <div class="network-legend">
+                        <h4>凡例:</h4>
+                        <div class="legend-items">
+                            <div class="legend-item"><span class="legend-color gateway"></span> ゲートウェイ/ルーター
+                            </div>
+                            <div class="legend-item"><span class="legend-color server"></span> サーバー (5+ポート)</div>
+                            <div class="legend-item"><span class="legend-color mobile"></span> モバイル機器</div>
+                            <div class="legend-item"><span class="legend-color host"></span> その他のホスト</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- HTTP詳細情報モーダル -->
+        <div id="httpInfoModal" class="modal hidden">
+            <div class="modal-content modal-medium">
+                <div class="modal-header">
+                    <h2 id="httpInfoModalTitle">🌐 HTTP/HTTPS詳細情報</h2>
+                    <button class="close-btn" onclick="closeHttpInfoModal()">&times;</button>
+                </div>
+                <div class="modal-body" id="httpInfoModalBody" style="max-height: 600px; overflow-y: auto;">
+                    <!-- HTTP詳細情報がここに表示されます -->
+                </div>
             </div>
         </div>
     </div>
 
-    <script src="{{ url_for('static', filename='script.js') }}?v=20251115-9"></script>
+    <!-- 履歴サイドバー（新規追加） -->
+    <aside class="history-sidebar">
+        <div class="sidebar-header">
+            <h3>📜 スキャン履歴</h3>
+        </div>
+        <div class="sidebar-content">
+            <div id="historyContainer">
+                <div class="empty-history">
+                    <div class="empty-history-icon">📋</div>
+                    <div>読み込み中...</div>
+                </div>
+            </div>
+        </div>
+    </aside>
+</div>
+
+<script src="{{ url_for('static', filename='script.js') }}?v=20251115-9"></script>
 </body>
 </html>
